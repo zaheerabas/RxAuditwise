@@ -1,1 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RxAuditwise — Pharmacy Reconciliation v3</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     UPLOAD SCREEN
+══════════════════════════════════════ -->
+<div id="upload-screen">
+    <div style="text-align:center">
+        <div class="upload-hero">💊 NDC Viewer</div>
+        <div class="upload-sub">Pharmacy Purchase Reconciliation · v3.0</div>
+    </div>
+    <div class="upload-grid">
+        <div class="upload-card" id="card-supplier" onclick="document.getElementById('inp-supplier').click()">
+            <input type="file" id="inp-supplier" multiple accept=".csv,.xlsx,.xls">
+            <div class="upload-icon">📦</div>
+            <div class="upload-label">Supplier Files</div>
+            <div class="upload-hint">Invoice Details, Purchase Summary, Transaction History (.csv/.xlsx)</div>
+            <div class="upload-filename" id="fn-supplier"></div>
+        </div>
+        <div class="upload-card" id="card-billing" onclick="document.getElementById('inp-billing').click()">
+            <input type="file" id="inp-billing" accept=".csv,.xlsx,.xls">
+            <div class="upload-icon">🧾</div>
+            <div class="upload-label">Billing File</div>
+            <div class="upload-hint">Rx Billing / Dispense data — NDC, insurer, BIN, quantity filled</div>
+            <div class="upload-filename" id="fn-billing"></div>
+        </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+        <button class="process-btn" id="process-btn" onclick="processFiles()">⚡ Run Reconciliation</button>
+        <div class="progress-bar" id="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="progress-label" id="progress-label"></div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     APP SCREEN
+══════════════════════════════════════ -->
+<div id="app-screen">
+    <!-- Top navigation bar -->
+    <div class="topbar">
+        <span class="topbar-title">NDC Viewer v3.0</span>
+        <div class="topbar-tabs">
+            <div class="topbar-tab" onclick="switchTab('raw',this)">Preview (Raw)</div>
+            <div class="topbar-tab" onclick="switchTab('suppliers',this)">Combined Suppliers</div>
+            <div class="topbar-tab active" onclick="switchTab('results',this)">Results</div>
+            <div class="topbar-tab" style="color:var(--mfp);font-weight:600" onclick="switchTab('mfp',this)">📋 MFP</div>
+            <div class="topbar-tab" onclick="switchTab('final',this)">Final</div>
+            <div class="topbar-tab" onclick="switchTab('bill',this)">Bill</div>
+            <div class="topbar-tab" onclick="switchTab('discarded',this)">Discarded</div>
+            <div class="topbar-tab" style="color:#b45309;font-weight:600" onclick="switchTab('notbilled',this)">⚠️ Not Billed</div>
+            <div class="topbar-tab" onclick="switchTab('issues',this)">Issues</div>
+        </div>
+        <div class="topbar-spacer"></div>
+        <span class="ndc-count" id="ndc-count-label"></span>
+        <button class="reset-btn" onclick="resetApp()">↺ New Files</button>
+    </div>
+
+    <!-- ── RESULTS TAB ── -->
+    <div id="tab-results">
+        <div class="toolbar">
+            <button class="export-btn" onclick="openExportModal('results')">⬇ Export</button>
+            <span class="detail-label">Bill (Detail): Insurer rows + NDC totals</span>
+            <div class="filter-group" id="status-filters">
+                <button class="filter-btn all active" onclick="setFilter('all',this)">All</button>
+                <button class="filter-btn ok" onclick="setFilter('ok',this)">OK</button>
+                <button class="filter-btn over" onclick="setFilter('over',this)">Over</button>
+                <button class="filter-btn short" onclick="setFilter('short',this)">Short</button>
+            </div>
+         <!--   <button class="filter-btn" style="background:#f5f3ff;border-color:#c4b5fd;color:var(--mfp);font-weight:700;margin-left:4px" onclick="switchTab('mfp',document.querySelector('.topbar-tab[onclick*=\'mfp\']'))">📋 MFP</button>  -->
+            <div class="toolbar-spacer"></div>
+            <button class="filter-btn" style="background:#fff7ed;border-color:#fcd34d;color:#b45309;font-weight:700" onclick="resetResultsFilters()">↺ Reset Filters</button>
+            <select class="select-filter" id="ins-filter" onchange="applyFilters()"><option>All Insurers</option></select>
+            <select class="select-filter" id="form-filter" onchange="applyFilters()"><option>All Drug Forms</option></select>
+            <select class="select-filter" id="brand-filter" onchange="applyFilters()" style="display:none">
+                <option>Brand: All</option><option>Brand: Y</option><option>Brand: N</option>
+            </select>
+            <input class="search-box" id="search-box" placeholder="Search this view…" oninput="applyFilters()">
+            <button class="pkg-toggle-btn" id="pkg-toggle-btn" onclick="togglePkgDivide()" title="Divide FILLED QTY, PURCHASED QTY, RECONCILIATION and STATUS by PKG SIZE">
+                ÷ PKG
+            </button>
+        </div>
+        <div class="summary-bar" id="summary-bar"></div>
+        <div class="table-wrap">
+            <table id="main-table">
+                <thead><tr>
+                    <th class="col-sr" onclick="sortBy('ndc')">SR#</th>
+                    <th class="col-desc" onclick="sortBy('description')">DESCRIPTION</th>
+                    <th class="col-ndc" onclick="sortBy('ndc')">NDC</th>
+                    <th class="col-pkg" onclick="sortBy('packageSize')">PKG SIZE</th>
+                    <th class="col-ins" onclick="sortBy('insName')">RX INS NAME</th>
+                    <th class="col-bin" onclick="sortBy('binNo')">RX INS BIN</th>
+                    <th class="col-rxq" id="th-rxq" onclick="sortBy('rxQty')">FILLED QTY</th>
+                    <th class="col-pq" id="th-pq" onclick="sortBy('purchaseQty')">PURCHASED QTY</th>
+                    <th class="col-diff" id="th-diff" onclick="sortBy('diff')">RECONCILIATION</th>
+                    <th class="col-stat" id="th-stat" onclick="sortBy('status')">STATUS</th>
+                </tr></thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── RAW PREVIEW TAB ── -->
+    <div id="tab-raw" class="tab-content">
+        <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:7px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
+            <span style="font-weight:700;font-size:13px;color:var(--text)">Preview (Raw)</span>
+            <span style="font-size:11px;color:var(--text-muted)">Search across all files:</span>
+            <input class="search-box" id="raw-global-search" style="width:260px" placeholder="Search all files…" oninput="rawGlobalSearchFn(this.value)">
+            <button class="raw-btn" onclick="rawGlobalSearchFn('');document.getElementById('raw-global-search').value=''">Clear</button>
+        </div>
+        <div id="raw-content" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:16px;">
+            <div class="placeholder-tab"><div class="icon">📄</div><span>Raw preview — upload files to see raw data.</span></div>
+        </div>
+    </div>
+
+    <!-- ── COMBINED SUPPLIERS TAB ── -->
+    <div id="tab-suppliers" class="tab-content">
+        <div id="suppliers-content" style="height:100%">
+            <div class="placeholder-tab"><div class="icon">📦</div><span>Upload supplier files to see combined data.</span></div>
+        </div>
+    </div>
+
+    <!-- ── FINAL TAB ── -->
+    <div id="tab-final" class="tab-content">
+        <div id="final-content" style="height:100%;display:flex;flex-direction:column;">
+            <div class="placeholder-tab"><div class="icon">✅</div><span>Final — upload and reconcile files to see summary.</span></div>
+        </div>
+    </div>
+
+    <!-- ── BILL TAB ── -->
+    <div id="tab-bill" class="tab-content">
+        <div id="bill-content" style="height:100%;display:flex;flex-direction:column;">
+            <div class="placeholder-tab"><div class="icon">💵</div><span>Run reconciliation to see billing summary.</span></div>
+        </div>
+    </div>
+
+    <!-- ── DISCARDED TAB ── -->
+    <div id="tab-discarded" class="tab-content">
+        <div id="discarded-content" style="height:100%;display:flex;flex-direction:column;">
+            <div class="placeholder-tab"><div class="icon">🗑️</div><span>Run reconciliation to see discarded NDCs.</span></div>
+        </div>
+    </div>
+
+    <!-- ── ISSUES TAB ── -->
+    <div id="tab-issues" class="tab-content">
+        <div id="issues-content" style="height:100%;display:flex;flex-direction:column;">
+            <div class="placeholder-tab"><div class="icon">⚠️</div><span>Run reconciliation to see issues.</span></div>
+        </div>
+    </div>
+
+    <!-- ── NOT BILLED TAB ── -->
+    <div id="tab-notbilled" class="tab-content">
+        <div id="notbilled-content" style="height:100%;display:flex;flex-direction:column;">
+            <div class="placeholder-tab"><div class="icon">⚠️</div><span>Run reconciliation to see unbilled NDCs.</span></div>
+        </div>
+    </div>
+
+    <!-- ── MFP TAB ── -->
+    <div id="tab-mfp">
+        <div class="toolbar">
+            <button class="export-btn" onclick="openExportModal('mfp')">⬇ Export</button>
+            <span class="detail-label">MFP — Maximum Fair Price (filtered NDCs)</span>
+            <div class="filter-group" id="mfp-year-filters">
+                <button class="year-btn active" onclick="setMFPYear('all',this)" title="Show all years">All</button>
+                <button class="year-btn" onclick="setMFPYear('2026',this)" title="Show 2026 only">2026</button>
+                <button class="year-btn" onclick="setMFPYear('2027',this)" title="Show 2026 to 2027">2027</button>
+                <button class="year-btn" onclick="setMFPYear('2028',this)" title="Show 2026 to 2028">2028</button>
+            </div>
+            <div class="filter-group" id="mfp-status-filters">
+                <button class="filter-btn all active" onclick="setMFPStatus('all',this)">All</button>
+                <button class="filter-btn ok" onclick="setMFPStatus('ok',this)">OK</button>
+                <button class="filter-btn over" onclick="setMFPStatus('over',this)">Over</button>
+                <button class="filter-btn short" onclick="setMFPStatus('short',this)">Short</button>
+            </div>
+            <div class="toolbar-spacer"></div>
+            <select class="select-filter" id="mfp-ins-filter" onchange="renderMFP()"><option>All Insurers</option></select>
+            <select class="select-filter" id="mfp-form-filter" onchange="renderMFP()"><option>All Drug Forms</option></select>
+            <input class="search-box" id="mfp-search" placeholder="Search this view…" oninput="renderMFP()">
+            <button class="pkg-toggle-btn" id="mfp-pkg-toggle-btn" onclick="togglePkgDivide()" title="Divide quantities by PKG SIZE">÷ PKG</button>
+        </div>
+        <div class="summary-bar" id="mfp-summary-bar"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th class="col-sr">Sr#</th>
+                    <th class="col-desc">Description</th>
+                    <th class="col-ndc">NDC</th>
+                    <th class="col-pkg">Package Size</th>
+                    <th class="col-ins">Rx Ins Name</th>
+                    <th class="col-bin">Rx Ins BIN</th>
+                    <th class="col-rxq">Rx Qty Filled Total</th>
+                    <th class="col-pq">Purchase Quantity</th>
+                    <th class="col-diff">Difference</th>
+                    <th class="col-stat">Status</th>
+                </tr></thead>
+                <tbody id="mfp-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="footer">
+        <span>NDC Viewer v3.0 — local only • no network</span>
+        <span>Tips: Click NDC to copy &nbsp;•&nbsp; <kbd style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:0 4px">Ctrl+C</kbd> copies focused cell &nbsp;•&nbsp; <kbd style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:0 4px">F1–F9</kbd> switch tabs &nbsp;•&nbsp; <kbd style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:0 4px">Ctrl+F</kbd> search</span>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     EXPORT MODAL
+══════════════════════════════════════ -->
+<div id="export-overlay">
+<div id="export-modal">
+  <div style="padding:16px 20px;border-bottom:1px solid #ebeef2;display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <div style="font-size:15px;font-weight:700;color:#1a1d23">⬇ Export data</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:2px" id="em-tab-info"></div>
+    </div>
+    <button onclick="closeExportModal()" style="width:28px;height:28px;border-radius:6px;border:1px solid #dde1e7;background:transparent;cursor:pointer;font-size:16px;color:#6b7280;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
+  </div>
+  <div style="padding:18px 20px;">
+    <div class="em-section-label">Format</div>
+    <div class="em-fmt-grid" id="em-fmt-grid">
+      <div class="em-fmt active" data-fmt="csv" onclick="emSetFmt(this)">
+        <div class="em-fmt-icon">📄</div>
+        <div class="em-fmt-label">CSV</div>
+        <div class="em-fmt-ext">.csv</div>
+      </div>
+      <div class="em-fmt" data-fmt="xlsx" onclick="emSetFmt(this)">
+        <div class="em-fmt-icon">📊</div>
+        <div class="em-fmt-label">Excel</div>
+        <div class="em-fmt-ext">.xlsx</div>
+      </div>
+      <div class="em-fmt" data-fmt="json" onclick="emSetFmt(this)">
+        <div class="em-fmt-icon">🗂️</div>
+        <div class="em-fmt-label">JSON</div>
+        <div class="em-fmt-ext">.json</div>
+      </div>
+      <div class="em-fmt" data-fmt="pdf" onclick="emSetFmt(this)">
+        <div class="em-fmt-icon">📑</div>
+        <div class="em-fmt-label">PDF</div>
+        <div class="em-fmt-ext">.pdf</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div class="em-section-label" style="margin-bottom:0">Columns</div>
+      <button id="em-selall-btn" onclick="emToggleAll()" style="font-size:11px;color:#2563eb;border:none;background:none;cursor:pointer;padding:0;font-weight:600;">Deselect all</button>
+    </div>
+    <div class="em-col-grid" id="em-col-grid"></div>
+    <div class="em-section-label">File name</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input class="em-filename-inp" id="em-fname" value="NDC_Export">
+      <span id="em-ext" style="font-size:12px;color:#6b7280;min-width:40px;font-weight:600;">.csv</span>
+    </div>
+  </div>
+  <div style="padding:12px 20px;border-top:1px solid #ebeef2;display:flex;align-items:center;justify-content:space-between;">
+    <span id="em-footer-info" style="font-size:11px;color:#6b7280;"></span>
+    <div style="display:flex;gap:8px;">
+      <button class="em-btn-cancel" onclick="closeExportModal()">Cancel</button>
+      <button class="em-btn-export" id="em-export-btn" onclick="emDoExport()">⬇ Export</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════════
+     JAVASCRIPT — load order matters
+══════════════════════════════════════ -->
+<script src="license.js"></script>
+<script src="constants.js"></script>
+<script src="utils.js"></script>
+<script src="parser.js"></script>
+<script src="tabs-results.js"></script>
+<script src="tabs-other.js"></script>
+<script src="export.js"></script>
+
+
+<script>
+// ── Keyboard shortcuts + Menu IPC handler ─────────────────────
+(function() {
+    const TABS = ['raw','suppliers','results','mfp','final','bill','discarded','notbilled','issues'];
+
+    function doSwitchTab(name) {
+        const btn = document.querySelector(`.topbar-tab[onclick*="'${name}'"]`);
+        if (btn && typeof switchTab === 'function') switchTab(name, btn);
+    }
+
+    function doFocusSearch() {
+        const searches = ['search-box','mfp-search','raw-global-search',
+                          'sup-search-inp','final-search-inp','bill-search-inp',
+                          'disc-search-inp','iss-search-inp','nb-search-inp'];
+        for (const id of searches) {
+            const el = document.getElementById(id);
+            if (el && el.offsetParent !== null) { el.focus(); el.select(); return; }
+        }
+    }
+
+    // ── Keyboard listener ──────────────────────────────────────
+    document.addEventListener('keydown', function(e) {
+        const tag = (document.activeElement || {}).tagName || '';
+        const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+        // F1–F9: switch tabs
+        if (!inInput && e.key >= 'F1' && e.key <= 'F9') {
+            const idx = parseInt(e.key.slice(1)) - 1;
+            if (idx < TABS.length) { e.preventDefault(); doSwitchTab(TABS[idx]); }
+        }
+        // Ctrl+F: focus search
+        if ((e.ctrlKey||e.metaKey) && e.key==='f') { e.preventDefault(); doFocusSearch(); }
+        // Ctrl+Home: go to Results
+        if ((e.ctrlKey||e.metaKey) && e.key==='Home') {
+            e.preventDefault(); doSwitchTab('results');
+        }
+        // Escape: deselect cell
+        if (e.key === 'Escape') {
+            document.querySelectorAll('td.focused').forEach(c=>c.classList.remove('focused'));
+        }
+    });
+
+    // ── Electron menu IPC handler ──────────────────────────────
+    if (window.electronAPI && window.electronAPI.onMenuAction) {
+        window.electronAPI.onMenuAction((action, ...args) => {
+            switch(action) {
+                case 'switch-tab':
+                    doSwitchTab(args[0]);
+                    break;
+                case 'focus-search':
+                    doFocusSearch();
+                    break;
+                case 'clear-search': {
+                    // clear all search boxes
+                    ['search-box','mfp-search','raw-global-search','sup-search-inp',
+                     'final-search-inp','bill-search-inp','disc-search-inp','iss-search-inp','nb-search-inp']
+                    .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+                    if(typeof applyFilters==='function') applyFilters();
+                    break;
+                }
+                case 'reset-filters':
+                    if (typeof resetResultsFilters==='function') resetResultsFilters();
+                    break;
+                case 'new-files':
+                    if (typeof resetApp==='function') resetApp();
+                    break;
+                case 'run-reconciliation': {
+                    const btn = document.getElementById('process-btn');
+                    if (btn && !btn.disabled) btn.click();
+                    break;
+                }
+                case 'export': {
+                    const expBtn = document.querySelector('.export-btn');
+                    if (expBtn) expBtn.click();
+                    break;
+                }
+                case 'open-supplier':
+                    // args[0] = array of file paths (from Electron dialog)
+                    // Can't directly set File input, but we can signal the app
+                    console.log('open-supplier:', args[0]);
+                    break;
+                case 'open-billing':
+                    console.log('open-billing:', args[0]);
+                    break;
+            }
+        });
+    }
+})();
+</script>
+</body>
+</html>
 
