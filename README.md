@@ -1,21 +1,10 @@
-# RxAuditwise
-RxAuditwise is a desktop application that allows users to upload CSV files, analyze and validate data, identify errors, and export clean, structured reports with ease.
-
-
-
-
-
-
 <!-- ======================================== -->
 <!-- 🧠 HERO SECTION -->
 <!-- ======================================== -->
-
 <h1 align="center">RxAuditwise</h1>
-
 <p align="center">
-  Intelligent CSV Auditing & Data Validation Platform
+  Pharmacy Purchase Reconciliation, Automated
 </p>
-
 <p align="center">
   <a href="https://software.rxauditwise.com/">
     <img src="https://img.shields.io/badge/Launch-Web_App-0A66C2?style=for-the-badge&logo=googlechrome&logoColor=white"/>
@@ -23,13 +12,9 @@ RxAuditwise is a desktop application that allows users to upload CSV files, anal
   <a href="https://rxauditwise.com/download/RxAuditwise-Setup-1.0.0.exe">
     <img src="https://img.shields.io/badge/Download-Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white"/>
   </a>
-  <a href="https://rxauditwise.com/download/RxAuditwise-Setup-1.0.0.exe">
-    <img src="https://img.shields.io/badge/Download-macOS-000000?style=for-the-badge&logo=apple&logoColor=white"/>
-  </a>
 </p>
-
 <p align="center">
-  ⚡ Fast • 🧠 Intelligent • 🔒 Secure • 🌍 Cross-Platform
+  ⚡ Fast • 🎯 NDC-Level Accuracy • 🔒 Multi-Tenant Secure • 🌐 Web + Desktop
 </p>
 
 ---
@@ -37,11 +22,10 @@ RxAuditwise is a desktop application that allows users to upload CSV files, anal
 <!-- ======================================== -->
 <!-- 📸 PRODUCT PREVIEW -->
 <!-- ======================================== -->
-
 ## Product Preview
 
 <p align="center">
-  <img src="https://software.rxauditwise.com/assets/Rxauditwise-Logo.ico" width="10%" />
+  <img src="https://software.rxauditwise.com/icon.png" width="10%" />
 </p>
 
 ---
@@ -49,23 +33,23 @@ RxAuditwise is a desktop application that allows users to upload CSV files, anal
 <!-- ======================================== -->
 <!-- 🚀 VALUE PROPOSITION -->
 <!-- ======================================== -->
-
 ## Why RxAuditwise?
 
-RxAuditwise is designed for professionals who demand **accuracy, speed, and reliability** in data auditing workflows.
+Every pharmacy buys drugs from suppliers and bills insurers for what it dispenses. Those two numbers should match — RxAuditwise checks that they do, automatically, at the individual NDC level, and flags every discrepancy before it becomes a shrinkage problem or a billing dispute.
 
-- ⚡ Process large CSV datasets in seconds  
-- 🧠 Automatically detect errors and inconsistencies  
-- 📊 Generate clean, structured reports  
-- 🔒 Maintain full control over sensitive data  
-- 🌐 Work seamlessly across desktop and browser  
+- ⚡ Reconcile thousands of NDCs in seconds, not a manual spreadsheet cross-check
+- 🎯 Every drug flagged **OK**, **OVER**, or **SHORT** — no ambiguity about what needs attention
+- 🧠 Auto-detects file formats and columns from your suppliers — and asks before guessing when it can't
+- 📊 Ten specialized views: full results, insurer totals, dollar-value reconciliation, MFP tracking, and more
+- 📤 Export to CSV, Excel, or PDF from any view, matching exactly what's on your screen
+- 🔒 Multi-tenant, license-code-gated access — each pharmacy sees only its own data
+- 🌐 Use it from any browser, or install the Windows desktop app
 
 ---
 
 <!-- ======================================== -->
 <!-- 📥 ACCESS / DOWNLOAD -->
 <!-- ======================================== -->
-
 ## Access the Platform
 
 <p align="center">
@@ -74,41 +58,87 @@ RxAuditwise is designed for professionals who demand **accuracy, speed, and reli
 
 ### Desktop & Web Distribution
 
-| Platform | Type | Access | Performance | Best For |
-|----------|------|--------|------------|----------|
-| 🪟 **Windows** | Native | [Download](https://rxauditwise.com/download/RxAuditwise-Setup-1.0.0.exe) | ⭐⭐⭐⭐⭐ | Heavy datasets |
-| 🍎 **macOS** | Native | [Download](https://rxauditwise.com/download/RxAuditwise-Setup-1.0.0.exe) | ⭐⭐⭐⭐⭐ | Professional workflows |
-| 🌐 **Web App** | Browser | [Launch](https://software.rxauditwise.com/) | ⭐⭐⭐⭐ | Quick access |
+| Platform | Type | Access | Best For |
+|----------|------|--------|----------|
+| 🪟 **Windows** | Native | [Download](https://rxauditwise.com/download/RxAuditwise-Setup-1.0.0.exe) | Large reconciliations, offline use |
+| 🌐 **Web App** | Browser | [Launch](https://software.rxauditwise.com/) | Quick access, no install, always current |
 
 ---
 
 <!-- ======================================== -->
 <!-- ⚙️ DEPLOYMENT EXPERIENCE -->
 <!-- ======================================== -->
-
 ## Experience Modes
 
 ### 🖥 Desktop Mode
-- High-performance processing engine  
-- Offline capability  
-- Ideal for enterprise-scale data  
+- Native Windows application via Electron
+- Full-size native menu with keyboard shortcuts for every tab
+- Same reconciliation engine as the web app
 
 ### 🌐 Web Mode
-- Instant access (no installation)  
-- Always updated  
-- Accessible from anywhere  
+- Instant access, no installation
+- Always running the latest version
+- Accessible from any device with a browser
 
 ---
 
 <!-- ======================================== -->
 <!-- ⚡ QUICK START -->
 <!-- ======================================== -->
-
 ## Quick Start
 
 ### Desktop
+```
+1. Download the Windows installer
+2. Run it and launch RxAuditwise
+3. Log in with your pharmacy's license code
+```
 
-```bash
-1. Download installer
-2. Install application
-3. Launch RxAuditwise
+### Web
+```
+1. Open https://software.rxauditwise.com/
+2. Log in with your pharmacy's license code
+```
+
+### Running your first reconciliation
+```
+1. Upload your supplier purchase file(s) and billing file
+2. If a column wasn't auto-detected, pick it from the dropdown when prompted
+3. Click "Run Reconciliation"
+4. Review results — every NDC flagged OK, OVER, or SHORT
+5. Export whichever view you need as CSV, Excel, or PDF
+```
+
+---
+
+<!-- ======================================== -->
+<!-- 📑 WHAT'S INSIDE -->
+<!-- ======================================== -->
+## What's Inside
+
+| Tab | Purpose |
+|---|---|
+| **Results** | Full NDC-level reconciliation — your main working view |
+| **Issues** | Just the SHORT and OVER items that need attention |
+| **Suppliers** | Combined purchase data across all supplier files |
+| **MFP** | Manufacturer Fair Price NDC tracking |
+| **Final** | Clean variance summary by status |
+| **Bill** | Totals grouped by insurer |
+| **Dollar** | Reconciliation by dollar value instead of quantity |
+| **Discarded** | Billed NDCs with no matching supplier purchase |
+| **Not Billed** | Purchased NDCs never billed |
+| **Preview** | Raw uploaded files and column-mapping fixes |
+
+**Supported supplier files:** McKesson, ABC/AmerisourceBergen, Cardinal Health, Smith Drugs, TRXADE (dedicated parsing), plus Belco, Alpine Health, Product Movement, rxpost, and any CSV/XLSX/XLS/TSV via auto-detect with manual fallback.
+
+**Supported billing files:** RxReportPlus, NEW_DATA.csv.
+
+---
+
+## Support
+
+📧 [info@rxauditwise.com](mailto:info@rxauditwise.com) · 📞 +1 (347) 870-0748
+
+---
+
+*This repository contains the RxAuditwise source code and is intended for internal use.*
